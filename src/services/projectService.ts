@@ -73,9 +73,18 @@ export const projectService = {
       data: {
         ...documentData,
         projectId,
-        status: documentData.status || 'uploaded'
       }
     });
+
+    // Mark project as outdated when a new document is added
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { 
+        status: 'OUTDATED',
+        updatedAt: new Date()
+      }
+    });
+
     return doc as unknown as Document;
   },
 
@@ -102,6 +111,13 @@ export const projectService = {
     await prisma.project.update({
         where: { id: projectId },
         data: { updatedAt: new Date() }
+    });
+  },
+
+  updateDocumentContent: async (id: string, content: string, status: string): Promise<void> => {
+    await prisma.document.update({
+      where: { id },
+      data: { content, status }
     });
   }
 };

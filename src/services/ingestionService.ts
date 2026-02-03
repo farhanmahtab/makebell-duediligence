@@ -1,6 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import pdf from 'pdf-parse';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+// @ts-ignore
+const pdf = require('pdf-parse');
+import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 
@@ -11,7 +16,11 @@ export const ingestionService = {
       return [];
     }
     const files = await fs.promises.readdir(DATA_DIR);
-    return files.filter(f => f.endsWith('.pdf'));
+    return files.filter(f => 
+       f.endsWith('.pdf') || 
+       f.endsWith('.docx') || 
+       f.endsWith('.xlsx')
+    );
   },
 
   // Simulate indexing a document (extract text and return it)
@@ -21,13 +30,46 @@ export const ingestionService = {
       throw new Error(`File ${filename} not found`);
     }
 
+    const ext = path.extname(filename).toLowerCase();
     const dataBuffer = await fs.promises.readFile(filePath);
-    const data = await pdf(dataBuffer);
-    return data.text;
+
+    if (ext === '.pdf') {
+      // @ts-ignore
+      const pdfParserClass = pdf.PDFParse || pdf.default || pdf;
+      const parser = new (pdfParserClass as any)(new Uint8Array(dataBuffer));
+      const result = await parser.getText();
+
+      if (result.text) return result.text;
+      if (result.pages) {
+        return result.pages
+          .sort((a: any, b: any) => a.pageNumber - b.pageNumber)
+          .map((p: any) => p.text)
+          .join('\n');
+      }
+      return '';
+    } 
+    
+    if (ext === '.docx') {
+      const result = await mammoth.extractRawText({ buffer: dataBuffer });
+      return result.value;
+    }
+
+    if (ext === '.xlsx') {
+      const workbook = XLSX.read(dataBuffer, { type: 'buffer' });
+      let fullText = '';
+      workbook.SheetNames.forEach(sheetName => {
+        const sheet = workbook.Sheets[sheetName];
+        fullText += XLSX.utils.sheet_to_txt(sheet) + '\n';
+      });
+      return fullText;
+    }
+
+    throw new Error(`Unsupported file extension: ${ext}`);
   },
   
   // Helper to chunk text (naive implementation)
   chunkText: (text: string, chunkSize: number = 1000): string[] => {
+    if (!text) return [];
     const chunks = [];
     for (let i = 0; i < text.length; i += chunkSize) {
       chunks.push(text.slice(i, i + chunkSize));
