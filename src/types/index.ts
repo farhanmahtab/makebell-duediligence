@@ -1,5 +1,5 @@
 export type ProjectStatus = 'active' | 'completed' | 'archived' | 'OUTDATED';
-export type AssessmentStatus = 'unanswered' | 'processing' | 'completed' | 'review_required';
+export type AssessmentStatus = 'unanswered' | 'processing' | 'completed' | 'review_required' | 'CONFIRMED' | 'REJECTED' | 'MANUAL_UPDATED' | 'MISSING_DATA';
 export type DocumentStatus = 'uploaded' | 'indexing' | 'indexed' | 'failed';
 
 export interface Project {
@@ -30,7 +30,9 @@ export interface Question {
 }
 
 export interface Answer {
+  id?: string;
   text: string;
+  manualText?: string;
   confidence: 'high' | 'medium' | 'low';
   citations: Citation[];
   status: AssessmentStatus;

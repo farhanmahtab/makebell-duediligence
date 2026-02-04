@@ -99,9 +99,10 @@ export const projectService = {
 
     await prisma.answer.create({
         data: {
-            id: crypto.randomUUID(),
+            id: answer.id || crypto.randomUUID(),
             questionId,
             text: answer.text,
+            manualText: answer.manualText,
             confidence: answer.confidence,
             status: answer.status,
             citations: {
@@ -114,6 +115,21 @@ export const projectService = {
                 }))
             }
         }
+    });
+
+    await prisma.project.update({
+        where: { id: projectId },
+        data: { updatedAt: new Date() }
+    });
+  },
+
+  updateAnswerStatus: async (projectId: string, questionId: string, status: string, manualText?: string): Promise<void> => {
+    await prisma.answer.update({
+      where: { questionId },
+      data: { 
+        status,
+        ...(manualText !== undefined && { manualText })
+      }
     });
 
     await prisma.project.update({

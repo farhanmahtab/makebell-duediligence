@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, FileText, CheckCircle, AlertCircle, Upload, Search, Check } from 'lucide-react';
-import { Project, Document, Question } from '@/types';
+import { Project, Document, Question, AssessmentStatus } from '@/types';
 import { useParams } from 'next/navigation';
 
 export default function ProjectDetail() {
@@ -16,6 +16,8 @@ export default function ProjectDetail() {
   const [availableFiles, setAvailableFiles] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
 
   useEffect(() => {
     fetchProject();
@@ -127,6 +129,23 @@ export default function ProjectDetail() {
       console.error(e);
     } finally {
       setIsRegenerating(false);
+    }
+  };
+
+  const handleUpdateStatus = async (questionId: string, status: AssessmentStatus, manualText?: string) => {
+    if (!project) return;
+    try {
+      const res = await fetch(`/api/answers/${questionId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: project.id, status, manualText }),
+      });
+      if (res.ok) {
+        setEditingAnswerId(null);
+        fetchProject();
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -277,25 +296,97 @@ export default function ProjectDetail() {
                      
                      {q.answer ? (
                        <div className="mt-3 bg-blue-50 p-4 rounded-lg border border-blue-100">
-                         <div className="flex justify-between items-start mb-2">
-                           <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">AI Generated Answer</span>
-                           <div className="flex items-center gap-2">
-                              <span className={`text-xs px-2 py-0.5 rounded-full border ${
-                                q.answer.confidence === 'high' ? 'bg-green-100 text-green-800 border-green-200' :
-                                q.answer.confidence === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                                'bg-red-100 text-red-800 border-red-200'
-                              }`}>
-                                {q.answer.confidence} confidence
-                              </span>
-                           </div>
-                         </div>
-                         <p className="text-slate-800 text-sm leading-relaxed">{q.answer.text}</p>
-                         {q.answer.citations?.length > 0 && (
-                           <div className="mt-3 pt-3 border-t border-blue-200/50">
-                             <p className="text-xs text-blue-600 font-medium mb-1">Source:</p>
-                             <p className="text-xs text-slate-600 italic">"{q.answer.citations[0].textSnippet}"</p>
-                           </div>
-                         )}
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
+                              {q.answer.status === 'MANUAL_UPDATED' ? 'Manual Override' : 'AI Generated Answer'}
+                            </span>
+                            <div className="flex items-center gap-2">
+                               {q.answer.status !== 'unanswered' && q.answer.status !== 'processing' && q.answer.status !== 'completed' && (
+                                 <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${
+                                   q.answer.status === 'CONFIRMED' ? 'bg-green-500 text-white' :
+                                   q.answer.status === 'REJECTED' ? 'bg-red-500 text-white' :
+                                   q.answer.status === 'MISSING_DATA' ? 'bg-slate-500 text-white' :
+                                   q.answer.status === 'MANUAL_UPDATED' ? 'bg-amber-500 text-white' :
+                                   'bg-blue-100 text-blue-700'
+                                 }`}>
+                                   {q.answer.status.replace('_', ' ')}
+                                 </span>
+                               )}
+                               <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                                 q.answer.confidence === 'high' ? 'bg-green-100 text-green-800 border-green-200' :
+                                 q.answer.confidence === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                 'bg-red-100 text-red-800 border-red-200'
+                               }`}>
+                                 {q.answer.confidence} confidence
+                               </span>
+                            </div>
+                          </div>
+
+                          {editingAnswerId === q.id ? (
+                            <div className="space-y-3">
+                              <textarea 
+                                value={editText}
+                                onChange={(e) => setEditText(e.target.value)}
+                                className="w-full p-3 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none min-h-[100px]"
+                              />
+                              <div className="flex justify-end gap-2">
+                                <button 
+                                  onClick={() => setEditingAnswerId(null)}
+                                  className="text-xs text-slate-500 px-3 py-1.5 hover:bg-slate-100 rounded"
+                                >
+                                  Cancel
+                                </button>
+                                <button 
+                                  onClick={() => handleUpdateStatus(q.id, 'MANUAL_UPDATED', editText)}
+                                  className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700"
+                                >
+                                  Save Override
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-slate-800 text-sm leading-relaxed">
+                                {q.answer.manualText || q.answer.text}
+                              </p>
+                              <div className="mt-4 flex flex-wrap items-center gap-2 pt-3 border-t border-blue-200/50">
+                                <button 
+                                  onClick={() => handleUpdateStatus(q.id, 'CONFIRMED')}
+                                  className="text-[10px] font-bold uppercase tracking-wider bg-white text-green-600 border border-green-200 px-2 py-1 rounded hover:bg-green-50 transition-colors"
+                                >
+                                  Confirm
+                                </button>
+                                <button 
+                                  onClick={() => handleUpdateStatus(q.id, 'REJECTED')}
+                                  className="text-[10px] font-bold uppercase tracking-wider bg-white text-red-600 border border-red-200 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                                >
+                                  Reject
+                                </button>
+                                <button 
+                                  onClick={() => handleUpdateStatus(q.id, 'MISSING_DATA')}
+                                  className="text-[10px] font-bold uppercase tracking-wider bg-white text-slate-600 border border-slate-200 px-2 py-1 rounded hover:bg-slate-50 transition-colors"
+                                >
+                                  Missing Data
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setEditingAnswerId(q.id);
+                                    setEditText(q.answer?.manualText || q.answer?.text || "");
+                                  }}
+                                  className="text-[10px] font-bold uppercase tracking-wider bg-white text-blue-600 border border-blue-200 px-2 py-1 rounded hover:bg-blue-50 transition-colors ml-auto"
+                                >
+                                  Edit Result
+                                </button>
+                              </div>
+                            </>
+                          )}
+                          
+                          {!q.answer.manualText && q.answer.citations?.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-blue-200/50">
+                              <p className="text-xs text-blue-600 font-medium mb-1">Source:</p>
+                              <p className="text-xs text-slate-600 italic">"{q.answer.citations[0].textSnippet}"</p>
+                            </div>
+                          )}
                        </div>
                      ) : (
                        <div className="mt-3 flex justify-end">
