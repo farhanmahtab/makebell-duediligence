@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, FileText, CheckCircle, AlertCircle, Upload, Search, Check } from 'lucide-react';
 import { Project, Document, Question, AssessmentStatus } from '@/types';
 import { useParams } from 'next/navigation';
+import ChatInterface from '@/components/ChatInterface';
 
 export default function ProjectDetail() {
   const params = useParams();
@@ -12,7 +13,7 @@ export default function ProjectDetail() {
   
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'documents' | 'questions' | 'evaluation'>('documents');
+  const [activeTab, setActiveTab] = useState<'documents' | 'questions' | 'evaluation' | 'chat'>('documents');
   const [availableFiles, setAvailableFiles] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -228,6 +229,16 @@ export default function ProjectDetail() {
             >
               Evaluation
             </button>
+            <button 
+              onClick={() => setActiveTab('chat')}
+              className={`py-4 font-medium text-sm border-b-2 transition-colors ${
+                activeTab === 'chat' 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Chat
+            </button>
           </div>
 
           {activeTab === 'questions' && project.status === 'OUTDATED' && (
@@ -434,7 +445,7 @@ export default function ProjectDetail() {
                  ))}
                 </div>
               </div>
-            ) : (
+            ) : activeTab === 'evaluation' ? (
               <div className="space-y-6">
                 <div className="flex justify-between items-center mb-4">
                   <div>
@@ -512,6 +523,10 @@ export default function ProjectDetail() {
                     </p>
                   </div>
                 )}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <ChatInterface projectId={project.id} />
               </div>
             )}
           </div>
