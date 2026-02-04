@@ -127,5 +127,28 @@ export const projectService = {
       where: { id },
       data: { content, status }
     });
+  },
+
+  addQuestions: async (projectId: string, questions: { text: string; section: string }[]): Promise<void> => {
+    await prisma.question.createMany({
+      data: questions.map(q => ({
+        projectId,
+        text: q.text,
+        section: q.section,
+      }))
+    });
+  },
+
+  clearQuestions: async (projectId: string): Promise<void> => {
+    await prisma.question.deleteMany({
+      where: { projectId }
+    });
+  },
+
+  updateProjectStatus: async (projectId: string, status: string): Promise<void> => {
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { status, updatedAt: new Date() }
+    });
   }
 };

@@ -14,6 +14,8 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'documents' | 'questions'>('documents');
   const [availableFiles, setAvailableFiles] = useState<string[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     fetchProject();
@@ -86,6 +88,48 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleImportQuestionnaire = async (filename: string) => {
+    if (!project) return;
+    setIsImporting(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename }),
+      });
+      if (res.ok) {
+        fetchProject();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to import questionnaire');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleRegenerateAll = async () => {
+    if (!project) return;
+    setIsRegenerating(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/regenerate`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        fetchProject();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to regenerate answers');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   if (loading) return <div className="p-10 text-center">Loading...</div>;
   if (!project) return <div className="p-10 text-center text-red-500">Project not found</div>;
 
@@ -136,6 +180,21 @@ export default function ProjectDetail() {
             </button>
           </div>
 
+          {activeTab === 'questions' && project.status === 'OUTDATED' && (
+            <div className="bg-amber-50 px-6 py-3 border-b border-amber-100 flex justify-between items-center animate-in fade-in duration-500">
+              <p className="text-sm text-amber-800">
+                <span className="font-semibold">Project Outdated:</span> New documents have been added since questions were last answered.
+              </p>
+              <button 
+                onClick={handleRegenerateAll}
+                disabled={isRegenerating || project.documents.length === 0}
+                className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded font-medium transition-colors disabled:opacity-50"
+              >
+                {isRegenerating ? 'Regenerating...' : 'Regenerate All Answers'}
+              </button>
+            </div>
+          )}
+
           <div className="p-6">
             {activeTab === 'documents' ? (
               <div className="space-y-8">
@@ -183,6 +242,32 @@ export default function ProjectDetail() {
               </div>
             ) : (
               <div className="space-y-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-semibold text-slate-800">Questionnaire</h3>
+                  <div className="relative group">
+                    <button 
+                      disabled={isImporting}
+                      className="text-sm bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-medium hover:bg-blue-100 transition-colors flex items-center gap-2"
+                    >
+                      <Upload size={14} />
+                      {isImporting ? 'Importing...' : 'Import from File'}
+                    </button>
+                    <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 p-2">
+                      <p className="text-xs text-slate-500 mb-2 px-2">Select a questionnaire file:</p>
+                      {availableFiles.map(file => (
+                        <button 
+                          key={file}
+                          onClick={() => handleImportQuestionnaire(file)}
+                          className="w-full text-left px-2 py-1.5 text-xs hover:bg-slate-50 rounded transition-colors truncate"
+                        >
+                          {file}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
                  {project.questions.map(q => (
                    <div key={q.id} className="p-4 border border-slate-200 rounded-lg hover:shadow-sm transition-shadow">
                      <div className="flex justify-between items-start mb-3">
@@ -225,6 +310,7 @@ export default function ProjectDetail() {
                      )}
                    </div>
                  ))}
+                </div>
               </div>
             )}
           </div>
