@@ -26,9 +26,10 @@ export async function POST(request: Request) {
         await projectService.updateDocumentContent(doc.id, text, 'indexed');
         
         return NextResponse.json({ ...doc, status: 'indexed', content: text });
-    } catch (e) {
+    } catch (e: any) {
+        console.error('Indexing Error:', e);
         await projectService.updateDocumentContent(doc.id, '', 'failed');
-        return NextResponse.json({ error: 'Indexing failed' }, { status: 500 });
+        return NextResponse.json({ error: e.message || 'Indexing failed' }, { status: 500 });
     }
 
   } catch (error) {

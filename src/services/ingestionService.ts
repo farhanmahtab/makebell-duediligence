@@ -2,6 +2,21 @@ import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
+// Polyfill for pdf-parse v2.4.5 in Node.js environment
+if (typeof global !== 'undefined') {
+  // @ts-ignore
+  if (!global.DOMMatrix) global.DOMMatrix = class DOMMatrix {};
+  // @ts-ignore
+  if (!global.ImageData) global.ImageData = class ImageData {};
+  // @ts-ignore
+  if (!global.Path2D) global.Path2D = class Path2D {};
+  // Force fake worker to avoid dynamic loading issues in Next.js
+  // @ts-ignore
+  global.PDFJS_DISABLE_WORKER = true;
+  // @ts-ignore
+  global.Worker = null;
+}
+
 // @ts-ignore
 const pdf = require('pdf-parse');
 import mammoth from 'mammoth';

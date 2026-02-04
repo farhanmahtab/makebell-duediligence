@@ -121,7 +121,9 @@ export default function Home() {
                     <FileText size={24} />
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    project.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+                    project.status === 'active' ? 'bg-green-100 text-green-700' : 
+                    project.status === 'OUTDATED' ? 'bg-amber-100 text-amber-700' :
+                    'bg-slate-100 text-slate-600'
                   }`}>
                     {project.status}
                   </span>

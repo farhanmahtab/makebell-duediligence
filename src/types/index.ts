@@ -1,4 +1,4 @@
-export type ProjectStatus = 'active' | 'completed' | 'archived';
+export type ProjectStatus = 'active' | 'completed' | 'archived' | 'OUTDATED';
 export type AssessmentStatus = 'unanswered' | 'processing' | 'completed' | 'review_required';
 export type DocumentStatus = 'uploaded' | 'indexing' | 'indexed' | 'failed';
 

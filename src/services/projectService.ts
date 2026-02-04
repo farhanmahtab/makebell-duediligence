@@ -89,9 +89,17 @@ export const projectService = {
   },
 
   updateAnswer: async (projectId: string, questionId: string, answer: Answer): Promise<void> => {
+    // 1. Delete existing answer and citations if any (due to @unique questionId and Cascade)
+    // Actually, we can use upsert if we want to preserve the ID, but since citations are many-to-one, 
+    // it's easier to recreate or update. Prisma upsert doesn't handle nested list updates well (it appends).
+    // So we'll delete the existing answer first to be safe and clean.
+    await prisma.answer.deleteMany({
+      where: { questionId }
+    });
+
     await prisma.answer.create({
         data: {
-            id: crypto.randomUUID(), // Add explicit ID generation
+            id: crypto.randomUUID(),
             questionId,
             text: answer.text,
             confidence: answer.confidence,

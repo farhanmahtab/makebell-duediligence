@@ -17,6 +17,7 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     fetchProject();
+    fetchAvailableFiles();
   }, [id]);
 
   const fetchProject = async () => {
@@ -30,17 +31,15 @@ export default function ProjectDetail() {
     }
   };
 
-  // Mock fetching available files from server (we need an endpoint or just hardcode for demo?
-  // I didn't create an endpoint to list files in `data/`, but `ingestionService` has `listAvailableFiles`.
-  // I will assume I can add a quick endpoint or just type in filenames for now.
-  // Actually, let's just create a quick client-side list of expected files from the README.
-  const KNOWN_FILES = [
-    'ILPA_Due_Diligence_Questionnaire_v1.2.pdf',
-    '20260110_MiniMax_Accountants_Report.pdf',
-    '20260110_MiniMax_Audited_Consolidated_Financial_Statements.pdf',
-    '20260110_MiniMax_Global_Offering_Prospectus.pdf',
-    '20260110_MiniMax_Industry_Report.pdf'
-  ];
+  const fetchAvailableFiles = async () => {
+    try {
+      const res = await fetch('/api/documents/list');
+      if (res.ok) setAvailableFiles(await res.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
 
   const handleIndexFile = async (filename: string) => {
     if (!project) return;
@@ -104,7 +103,9 @@ export default function ProjectDetail() {
           </div>
           <div className="flex gap-2">
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              project.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+              project.status === 'active' ? 'bg-green-100 text-green-700' : 
+              project.status === 'OUTDATED' ? 'bg-amber-100 text-amber-700' :
+              'bg-slate-100 text-slate-600'
             }`}>
               {project.status.toUpperCase()}
             </span>
@@ -164,10 +165,10 @@ export default function ProjectDetail() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-semibold mb-4">Available for Indexing</h3>
+                  <h3 className="text-lg font-semibold mb-4 text-slate-800">Available for Indexing</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {KNOWN_FILES.filter(f => !project.documents.some(d => d.name === f)).map(file => (
-                      <div key={file} className="flex justify-between items-center p-4 border border-slate-200 rounded-lg hover:border-blue-300 transition-colors">
+                    {availableFiles.filter(f => !project.documents.some(d => d.name === f)).map(file => (
+                      <div key={file} className="flex justify-between items-center p-4 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-white transition-all">
                         <span className="text-sm font-medium text-slate-700 truncate mr-2" title={file}>{file}</span>
                         <button 
                           onClick={() => handleIndexFile(file)}
@@ -204,7 +205,7 @@ export default function ProjectDetail() {
                            </div>
                          </div>
                          <p className="text-slate-800 text-sm leading-relaxed">{q.answer.text}</p>
-                         {q.answer.citations.length > 0 && (
+                         {q.answer.citations?.length > 0 && (
                            <div className="mt-3 pt-3 border-t border-blue-200/50">
                              <p className="text-xs text-blue-600 font-medium mb-1">Source:</p>
                              <p className="text-xs text-slate-600 italic">"{q.answer.citations[0].textSnippet}"</p>
