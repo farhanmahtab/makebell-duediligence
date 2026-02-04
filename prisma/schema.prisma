@@ -46,6 +46,8 @@ model Answer {
   manualText   String?    @db.Text
   confidence   String     // 'high' | 'medium' | 'low'
   status       String     // 'unanswered' | 'processing' | 'completed' | 'review_required' | 'CONFIRMED', etc.
+  evalScore    Float?
+  evalExplanation String?    @db.Text
   generatedAt  DateTime   @default(now())
   citations    Citation[]
 }

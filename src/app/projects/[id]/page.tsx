@@ -12,10 +12,11 @@ export default function ProjectDetail() {
   
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'documents' | 'questions'>('documents');
+  const [activeTab, setActiveTab] = useState<'documents' | 'questions' | 'evaluation'>('documents');
   const [availableFiles, setAvailableFiles] = useState<string[]>([]);
   const [isImporting, setIsImporting] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isEvaluating, setIsEvaluating] = useState(false);
   const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
 
@@ -132,6 +133,26 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleRunEvaluation = async () => {
+    if (!project) return;
+    setIsEvaluating(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/evaluate`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        fetchProject();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to run evaluation');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsEvaluating(false);
+    }
+  };
+
   const handleUpdateStatus = async (questionId: string, status: AssessmentStatus, manualText?: string) => {
     if (!project) return;
     try {
@@ -197,6 +218,16 @@ export default function ProjectDetail() {
             >
               Questions ({project.questions.length})
             </button>
+            <button 
+              onClick={() => setActiveTab('evaluation')}
+              className={`py-4 font-medium text-sm border-b-2 transition-colors ${
+                activeTab === 'evaluation' 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Evaluation
+            </button>
           </div>
 
           {activeTab === 'questions' && project.status === 'OUTDATED' && (
@@ -259,7 +290,7 @@ export default function ProjectDetail() {
                   </div>
                 </div>
               </div>
-            ) : (
+            ) : activeTab === 'questions' ? (
               <div className="space-y-6">
                 <div className="flex justify-between items-center mb-2">
                   <h3 className="text-lg font-semibold text-slate-800">Questionnaire</h3>
@@ -402,6 +433,85 @@ export default function ProjectDetail() {
                    </div>
                  ))}
                 </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-800">Evaluation Report</h3>
+                    <p className="text-sm text-slate-500">Comparison of AI vs Human (ground truth) answers.</p>
+                  </div>
+                  <button 
+                    onClick={handleRunEvaluation}
+                    disabled={isEvaluating || !project.questions.some(q => q.answer?.manualText)}
+                    className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  >
+                    {isEvaluating ? 'Evaluating...' : 'Run Evaluation'}
+                  </button>
+                </div>
+
+                {project.questions.some(q => q.answer?.evalScore !== undefined && q.answer?.evalScore !== null) ? (
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                       <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                         <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wider mb-1">Avg. Accuracy</p>
+                         <p className="text-3xl font-bold text-indigo-900">
+                           {Math.round(project.questions.reduce((acc, q) => acc + (q.answer?.evalScore || 0), 0) / project.questions.filter(q => q.answer?.evalScore !== undefined && q.answer?.evalScore !== null).length)}%
+                         </p>
+                       </div>
+                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                         <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Samples</p>
+                         <p className="text-3xl font-bold text-slate-800">
+                           {project.questions.filter(q => q.answer?.evalScore !== undefined && q.answer?.evalScore !== null).length}
+                         </p>
+                       </div>
+                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                         <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Status</p>
+                         <p className="text-xl font-bold text-slate-800 mt-1">
+                           COMPLETED
+                         </p>
+                       </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {project.questions.filter(q => q.answer?.evalScore !== undefined && q.answer?.evalScore !== null).map(q => (
+                        <div key={q.id} className="border border-slate-200 rounded-xl overflow-hidden">
+                           <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                              <span className="text-sm font-semibold text-slate-700 truncate mr-4">{q.text}</span>
+                              <span className={`text-sm font-bold ${
+                                (q.answer?.evalScore || 0) > 80 ? 'text-green-600' : 
+                                (q.answer?.evalScore || 0) > 50 ? 'text-amber-600' : 'text-red-600'
+                              }`}>
+                                Score: {q.answer?.evalScore}%
+                              </span>
+                           </div>
+                           <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                 <p className="text-[10px] font-bold text-slate-400 uppercase">AI Generated</p>
+                                 <p className="text-sm text-slate-600 line-clamp-3 italic">{q.answer?.text}</p>
+                              </div>
+                              <div className="space-y-1">
+                                 <p className="text-[10px] font-bold text-blue-400 uppercase">Human Override</p>
+                                 <p className="text-sm text-slate-800 line-clamp-3">{q.answer?.manualText}</p>
+                              </div>
+                           </div>
+                           <div className="px-4 py-3 bg-indigo-50/50 border-t border-slate-200">
+                              <p className="text-xs text-indigo-800 font-medium">
+                                <span className="font-bold">Explanation:</span> {q.answer?.evalExplanation}
+                              </p>
+                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 p-12 text-center rounded-xl border-2 border-dashed border-slate-200">
+                    <p className="text-slate-500 mb-2 font-medium">No evaluation results yet.</p>
+                    <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                      Ensure you have provided manual overrides for some questions and click "Run Evaluation" above.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

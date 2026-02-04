@@ -36,6 +36,8 @@ export interface Answer {
   confidence: 'high' | 'medium' | 'low';
   citations: Citation[];
   status: AssessmentStatus;
+  evalScore?: number;
+  evalExplanation?: string;
   generatedAt: string;
 }
 
